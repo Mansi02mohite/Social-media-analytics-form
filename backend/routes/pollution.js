@@ -19,8 +19,8 @@ router.get("/aggregate", async (req, res) => {
     const aggregateData = await Pollution.aggregate([
       {
         $group: {
-          _id: "$location",
-          count: { $sum: 1 },
+          _id: "$location", // Group by location
+          count: { $sum: 1 }, // Total number of reports for each location
           avgPollutionExperience: {
             $avg: {
               $switch: {
@@ -35,6 +35,7 @@ router.get("/aggregate", async (req, res) => {
               },
             },
           },
+          feedbackMessages: { $push: "$feedbackMessage" }, // Push all feedback messages for the location
         },
       },
       { $sort: { count: -1 } }, // Sort by number of reports
@@ -42,6 +43,16 @@ router.get("/aggregate", async (req, res) => {
     res.status(200).json(aggregateData);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch aggregate data", error: err });
+  }
+});
+
+// Fetch all feedback messages
+router.get("/feedbacks", async (req, res) => {
+  try {
+    const feedbacks = await Pollution.find({ feedbackMessage: { $exists: true, $ne: null } }).select("feedbackMessage").sort({ timestamp: -1 });
+    res.status(200).json(feedbacks);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch feedbacks", error: err });
   }
 });
 

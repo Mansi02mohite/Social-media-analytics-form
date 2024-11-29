@@ -7,6 +7,8 @@ const pollutionSchema = new mongoose.Schema({
   duration: { type: String },
   pollutionSource: { type: String },
   timestamp: { type: Date, default: Date.now },
+  feedbackMessage: { type: String, required: false },  // Feedback message
+  feedbackRating: { type: Number, min: 1, max: 5, required: false },  // Feedback rating (1-5)
 });
 
 const Pollution = mongoose.model("Pollution", pollutionSchema);

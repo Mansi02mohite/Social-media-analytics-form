@@ -19,9 +19,11 @@ const App = () => {
   const [duration, setDuration] = useState("");
   const [pollutionSource, setPollutionSource] = useState("");
   const [aggregateData, setAggregateData] = useState([]);
-  const [tweets, setTweets] = useState([]); // State to store tweets
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [comments, setComments] = useState([]); // State to store comments
 
-  // City options for the dropdown
   const cityOptions = [
     "Delhi",
     "Ghaziabad",
@@ -43,27 +45,31 @@ const App = () => {
     }
   };
 
-  // Fetch tweets for a specific city from the backend
-  const fetchTweets = async (city) => {
+  // Fetch feedback messages from the backend
+  const fetchFeedbacks = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tweets/${city}`);
+      const response = await fetch("http://localhost:5000/api/pollution/feedbacks");
       const data = await response.json();
-      setTweets(data); // Set the tweets data
+      setFeedbacks(data); // Set the feedback messages
     } catch (error) {
-      console.error("Error fetching tweets:", error);
+      console.error("Error fetching feedbacks:", error);
     }
   };
 
+  // Fetch aggregate data and feedbacks on initial load
   useEffect(() => {
     fetchAggregateData();
+    fetchFeedbacks(); // Fetch feedbacks on initial load
   }, []);
 
+  // Handle city selection change
   const handleCityChange = (e) => {
     const selectedCity = e.target.value;
     setLocation(selectedCity);
-    fetchTweets(selectedCity); // Fetch tweets whenever the city is changed
+    fetchAggregateData(); // Fetch aggregate data immediately when city is selected
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -73,6 +79,8 @@ const App = () => {
       symptoms,
       duration,
       pollutionSource,
+      feedbackMessage,
+      feedbackRating,
     };
 
     try {
@@ -89,7 +97,10 @@ const App = () => {
         setSymptoms([]);
         setDuration("");
         setPollutionSource("");
+        setFeedbackMessage("");
+        setFeedbackRating(0);
         fetchAggregateData(); // Refresh aggregate data after submission
+        fetchFeedbacks(); // Refresh feedbacks after submission
       } else {
         alert("Error submitting report!");
       }
@@ -98,10 +109,55 @@ const App = () => {
     }
   };
 
+  // Handle comment fade
+  const handleCommentRemoval = (id) => {
+    setComments((prevComments) =>
+      prevComments.filter((comment) => comment.id !== id)
+    );
+  };
+
+  useEffect(() => {
+    if (comments.length > 0) {
+      const lastComment = comments[comments.length - 1];
+      // Remove comment after 5 seconds (to let it fade out)
+      setTimeout(() => handleCommentRemoval(lastComment.id), 5000);
+    }
+  }, [comments]);
+
+  // Hardcoded comments array
+  const hardcodedComments = [
+    "Pollution levels are rising rapidly!",
+    "Air quality is at its worst in Delhi today.",
+    "Urgent action needed to combat pollution.",
+    "Our lungs are suffocating due to high pollution.",
+    "Stay safe, wear masks!",
+    "More green spaces could help reduce pollution.",
+    "Why is construction dust not regulated?",
+    "Tired of the air quality in this city.",
+    "When will air purifiers become affordable?",
+    "Pollution in the city is unbearable these days.",
+  ];
+
+  useEffect(() => {
+    let commentIndex = 0;
+    const interval = setInterval(() => {
+      if (commentIndex < hardcodedComments.length) {
+        setComments((prevComments) => [
+          ...prevComments,
+          { text: hardcodedComments[commentIndex], id: commentIndex },
+        ]);
+        commentIndex++;
+      }
+    }, 2000); // Display new comment every 2 seconds
+
+    return () => clearInterval(interval); // Cleanup interval on component unmount
+  }, []);
+
   return (
     <div style={{ padding: "20px" }}>
       <h1>Pollution Report</h1>
       <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
+        {/* Form inputs here... */}
         <label>Location:</label>
         <select value={location} onChange={handleCityChange} required>
           <option value="">Select a City</option>
@@ -186,6 +242,29 @@ const App = () => {
           ))}
         </div>
         <br />
+        <h3>Feedback</h3>
+        <label>Feedback Message:</label>
+        <textarea
+          value={feedbackMessage}
+          onChange={(e) => setFeedbackMessage(e.target.value)}
+          placeholder="Share your feedback..."
+          rows="4"
+          cols="50"
+        />
+        <br />
+        <label>Rating:</label>
+        <select
+          value={feedbackRating}
+          onChange={(e) => setFeedbackRating(Number(e.target.value))}
+        >
+          <option value={0}>Select Rating</option>
+          <option value={1}>1 - Poor</option>
+          <option value={2}>2</option>
+          <option value={3}>3</option>
+          <option value={4}>4</option>
+          <option value={5}>5 - Excellent</option>
+        </select>
+        <br />
         <button type="submit">Submit Report</button>
       </form>
 
@@ -219,19 +298,61 @@ const App = () => {
         }}
       />
 
-      <h2>Recent Tweets on Pollution</h2>
-      {tweets.length > 0 ? (
-        <ul>
-          {tweets.map((tweet, index) => (
-            <li key={index}>
-              <strong>{tweet.author_id}</strong>: {tweet.text} <br />
-              <small>{new Date(tweet.created_at).toLocaleString()}</small>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>No tweets found for this city.</p>
-      )}
+      <h3>Feedbacks Received</h3>
+      <p>{feedbacks.length} feedbacks received</p>
+      <ul>
+        {feedbacks.map((feedback, index) => (
+          <li key={index}>
+            <strong>{feedback.feedbackMessage}</strong>
+            <br />
+            Rating: {feedback.feedbackRating}
+            <br />
+          </li>
+        ))}
+      </ul>
+
+      {/* Right side footer for comments */}
+      <div className="comments-footer">
+        {comments.length > 0 && (
+          <div>
+            {comments.map((comment, index) => (
+              <div
+                key={comment.id}
+                className={`comment-box ${index === comments.length - 1 ? "comment-fade" : ""}`}
+                style={{ display: "block" }}
+              >
+                {comment.text}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        .comments-footer {
+          position: fixed;
+          bottom: 0;
+          right: 0;
+          width: 250px;
+          background-color: black;
+          color: white;
+          padding: 10px;
+          box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+          z-index: 100;
+        }
+
+        .comment-box {
+          background-color: #333;
+          padding: 8px;
+          margin-bottom: 5px;
+          border-radius: 5px;
+        }
+
+        .comment-fade {
+          opacity: 0;
+          transition: opacity 1s;
+        }
+      `}</style>
     </div>
   );
 };
